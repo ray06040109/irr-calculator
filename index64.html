@@ -1,0 +1,38 @@
+import numpy_financial as npf
+
+# 1. 核心參數設定
+initial_cost = 65000000          # 初始建場投入成本 (I0)
+years = 10                  # 投資營運年期 (N)
+annual_revenue = 25925760     # 年營業收入 (元)
+annual_op_cost = 12396120.3     # 年營業成本 (元)
+base_net_profit = 13929639.7    # 基準年淨利潤 (年營業收入 - 年營業成本)
+discount_rate = 0.05       # 資金成本 / 折現率
+
+# 2. 三情境變動幅度
+scenarios = {
+    "悲觀情境 (-20%)": base_net_profit * (1 + (-0.2)),
+    "基準情境 (0%)": base_net_profit * (1 + (0)),
+    "樂觀情境 (+20%)": base_net_profit * (1 + (0.2))
+}
+
+print("=" * 72)
+print(f"初始建場成本: {initial_cost:,.0f} 元 | 營運年期: {years} 年 | 折現率: {discount_rate*100:.1f}%")
+print(f"年營業收入: {annual_revenue:,.0f} 元 | 年營業成本: {annual_op_cost:,.1f} 元 | 基準年淨利: {base_net_profit:,.1f} 元")
+print("=" * 72)
+print(f"{'情境名稱':<15} | {'年淨利潤':<13} | {'IRR':<8} | {'靜態回收期':<10} | {'NPV':<13}")
+print("-" * 72)
+
+for name, annual_cf in scenarios.items():
+    # 建立現金流量陣列：第0年為負的初始建場成本，第1~N年為正向淨現金流入
+    cash_flows = [-initial_cost] + [annual_cf] * years
+    
+    # 計算 IRR 與 NPV
+    irr = npf.irr(cash_flows) if (years > 0 and initial_cost > 0 and annual_cf > 0) else None
+    npv = npf.npv(discount_rate, cash_flows)
+    payback = (initial_cost / annual_cf) if annual_cf > 0 else None
+    
+    irr_str = f"{irr*100:>6.2f}%" if irr is not None else "    N/A"
+    pb_str = f"{payback:>7.2f} 年" if payback is not None else "  無法回收"
+    print(f"{name:<16} | {annual_cf:>12,.1f} | {irr_str} | {pb_str} | {npv:>12,.1f}")
+
+print("=" * 72)
