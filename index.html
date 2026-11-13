@@ -1,38 +1,376 @@
-import numpy_financial as npf
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>建場投資案 IRR 與 NPV 動態財務評估與三情境模擬器</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans">
 
-# 1. 核心參數設定
-initial_cost = 65000000          # 初始建場投入成本 (I0)
-years = 10                  # 投資營運年期 (N)
-annual_revenue = 25925760     # 年營業收入 (元)
-annual_op_cost = 12396120.3     # 年營業成本 (元)
-base_net_profit = 13929639.7    # 基準年淨利潤 (年營業收入 - 年營業成本)
-discount_rate = 0.05       # 資金成本 / 折現率
+    <!-- 頂部導覽列 -->
+    <header class="bg-blue-900 text-white shadow-md py-4 px-6">
+        <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
+            <h1 class="text-xl md:text-2xl font-bold tracking-wide flex items-center gap-2">
+                <svg class="w-7 h-7 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                建場投資案 IRR 與 NPV 動態財務評估與三情境模擬器
+            </h1>
+            <div class="flex items-center gap-3">
+                <button onclick="resetToExample()" class="bg-blue-700 hover:bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition shadow">恢復範例數值</button>
+                <button onclick="resetToZero()" class="bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition shadow">恢復初始數值</button>
+            </div>
+        </div>
+    </header>
 
-# 2. 三情境變動幅度
-scenarios = {
-    "悲觀情境 (-20%)": base_net_profit * (1 + (-0.2)),
-    "基準情境 (0%)": base_net_profit * (1 + (0)),
-    "樂觀情境 (+20%)": base_net_profit * (1 + (0.2))
-}
+    <!-- 主要內容區 -->
+    <main class="max-w-7xl mx-auto px-4 py-6 flex-grow grid grid-cols-1 lg:grid-cols-12 gap-6 w-full">
+        
+        <!-- 左側：參數輸入面板 -->
+        <section class="lg:col-span-4 bg-white rounded-xl shadow-md p-5 border border-slate-200 flex flex-col gap-4">
+            <h2 class="text-lg font-bold text-slate-900 border-b pb-2 flex items-center gap-2">
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                模型參數設定
+            </h2>
 
-print("=" * 72)
-print(f"初始建場成本: {initial_cost:,.0f} 元 | 營運年期: {years} 年 | 折現率: {discount_rate*100:.1f}%")
-print(f"年營業收入: {annual_revenue:,.0f} 元 | 年營業成本: {annual_op_cost:,.1f} 元 | 基準年淨利: {base_net_profit:,.1f} 元")
-print("=" * 72)
-print(f"{'情境名稱':<15} | {'年淨利潤':<13} | {'IRR':<8} | {'靜態回收期':<10} | {'NPV':<13}")
-print("-" * 72)
+            <div class="flex flex-col gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">初始建場投入成本 (元)</label>
+                    <input type="number" id="input-cost" value="65000000" step="100000" oninput="calculate()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none font-semibold">
+                </div>
 
-for name, annual_cf in scenarios.items():
-    # 建立現金流量陣列：第0年為負的初始建場成本，第1~N年為正向淨現金流入
-    cash_flows = [-initial_cost] + [annual_cf] * years
-    
-    # 計算 IRR 與 NPV
-    irr = npf.irr(cash_flows) if (years > 0 and initial_cost > 0 and annual_cf > 0) else None
-    npv = npf.npv(discount_rate, cash_flows)
-    payback = (initial_cost / annual_cf) if annual_cf > 0 else None
-    
-    irr_str = f"{irr*100:>6.2f}%" if irr is not None else "    N/A"
-    pb_str = f"{payback:>7.2f} 年" if payback is not None else "  無法回收"
-    print(f"{name:<16} | {annual_cf:>12,.1f} | {irr_str} | {pb_str} | {npv:>12,.1f}")
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">投資營運年期 (年)</label>
+                    <input type="number" id="input-years" value="10" step="1" min="1" max="50" oninput="calculate()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
 
-print("=" * 72)
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">年營業收入 (元)</label>
+                    <input type="number" id="input-revenue" value="25925760" step="10000" oninput="onRevenueOrCostChange()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">年營業成本 (元)</label>
+                    <input type="number" id="input-opcost" value="12396120.3" step="10000" oninput="onRevenueOrCostChange()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">基準年淨利潤 (元) [可直接修改或由營收減成本決定]</label>
+                    <input type="number" id="input-profit" value="13929639.7" step="1000" oninput="onProfitManualChange()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none font-bold text-blue-700 bg-blue-50/50">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">資金成本 / 折現率 (%)</label>
+                    <input type="number" id="input-rate" value="5.0" step="0.5" min="0" max="30" oninput="calculate()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 pt-1">
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-500 mb-1">悲觀情境 (%)</label>
+                        <input type="number" id="input-pessimistic" value="-20" step="1" oninput="calculate()" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs text-center focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-500 mb-1">基準情境 (%)</label>
+                        <input type="number" id="input-base" value="0" disabled class="w-full px-2 py-1.5 border border-slate-200 bg-slate-100 rounded-lg text-xs text-center text-slate-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-500 mb-1">樂觀情境 (%)</label>
+                        <input type="number" id="input-optimistic" value="20" step="1" oninput="calculate()" class="w-full px-2 py-2 border border-slate-300 rounded-lg text-xs text-center focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 右側：圖表與分析結果面板 -->
+        <section class="lg:col-span-8 flex flex-col gap-6">
+            
+            <!-- 上方雙圖表區 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- 圖表一：三情境 NPV 比較 -->
+                <div class="bg-white rounded-xl shadow-md p-4 border border-slate-200 flex flex-col">
+                    <h3 class="text-sm font-bold text-slate-800 mb-2 flex items-center justify-between">
+                        <span>三情境 NPV 與 IRR 比較</span>
+                        <span id="badge-rate" class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-medium">折現率 5.0%</span>
+                    </h3>
+                    <div class="relative w-full h-[300px]">
+                        <canvas id="npvChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- 圖表二：基準情境現金流走勢 -->
+                <div class="bg-white rounded-xl shadow-md p-4 border border-slate-200 flex flex-col">
+                    <h3 class="text-sm font-bold text-slate-800 mb-2 flex items-center justify-between">
+                        <span>基準情境 10 年累積現金流量</span>
+                        <span id="badge-cost" class="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-medium">初投: $65,000,000</span>
+                    </h3>
+                    <div class="relative w-full h-[300px]">
+                        <canvas id="cashflowChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 下方：三情境詳細數據表 -->
+            <div class="bg-white rounded-xl shadow-md p-5 border border-slate-200">
+                <h3 class="text-base font-bold text-slate-900 mb-3 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                    三情境財務可行性分析表
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-700 border-b border-slate-200">
+                                <th class="py-2.5 px-3 font-semibold">評估指標</th>
+                                <th class="py-2.5 px-3 font-semibold text-right" id="th-pessimistic">悲觀情境 (-20%)</th>
+                                <th class="py-2.5 px-3 font-semibold text-right">基準情境 (0%)</th>
+                                <th class="py-2.5 px-3 font-semibold text-right" id="th-optimistic">樂觀情境 (+20%)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="result-table-body" class="divide-y divide-slate-100 text-slate-700">
+                            <!-- 動態填入 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- 頁尾 -->
+    <footer class="text-center py-4 text-xs text-slate-500 border-t bg-white mt-auto">
+        建場投資案 IRR 與 NPV 動態財務評估與三情境模擬器 &copy; 2026
+    </footer>
+
+    <!-- JavaScript 核心計算與圖表邏輯 -->
+    <script>
+        let npvChartInstance = null;
+        let cashflowChartInstance = null;
+
+        function formatCurrency(num) {
+            if (num === null || num === undefined || isNaN(num)) return '-';
+            if (Math.abs(num) >= 100000000) {
+                return (num / 100000000).toFixed(2) + ' 億';
+            } else if (Math.abs(num) >= 10000) {
+                return (num / 10000).toFixed(1) + ' 萬';
+            }
+            return num.toLocaleString('zh-TW', { maximumFractionDigits: 0 });
+        }
+
+        // 當營收或成本改變時，自動計算淨利潤
+        function onRevenueOrCostChange() {
+            const rev = parseFloat(document.getElementById('input-revenue').value) || 0;
+            const opcost = parseFloat(document.getElementById('input-opcost').value) || 0;
+            const profit = rev - opcost;
+            document.getElementById('input-profit').value = profit.toFixed(1);
+            calculate();
+        }
+
+        // 手動修改淨利潤時，同步更新成本（假設營收不變）
+        function onProfitManualChange() {
+            calculate();
+        }
+
+        // 恢復範例數值
+        function resetToExample() {
+            document.getElementById('input-cost').value = 65000000;
+            document.getElementById('input-years').value = 10;
+            document.getElementById('input-revenue').value = 25925760;
+            document.getElementById('input-opcost').value = 12396120.3;
+            document.getElementById('input-profit').value = 13929639.7;
+            document.getElementById('input-rate').value = 5.0;
+            document.getElementById('input-pessimistic').value = -20;
+            document.getElementById('input-optimistic').value = 20;
+            calculate();
+        }
+
+        // 恢復初始數值（全部歸零）
+        function resetToZero() {
+            document.getElementById('input-cost').value = 0;
+            document.getElementById('input-years').value = 0;
+            document.getElementById('input-revenue').value = 0;
+            document.getElementById('input-opcost').value = 0;
+            document.getElementById('input-profit').value = 0;
+            document.getElementById('input-rate').value = 0;
+            document.getElementById('input-pessimistic').value = 0;
+            document.getElementById('input-optimistic').value = 0;
+            calculate();
+        }
+
+        // 計算 IRR
+        function computeIRR(cfs) {
+            if (!cfs || cfs.length < 2) return null;
+            let r = 0.1;
+            for (let i = 0; i < 100; i++) {
+                let npv = 0;
+                let dnpv = 0;
+                for (let t = 0; t < cfs.length; t++) {
+                    const denom = Math.pow(1 + r, t);
+                    if (denom === 0) continue;
+                    npv += cfs[t] / denom;
+                    if (t > 0) {
+                        dnpv -= t * cfs[t] / (Math.pow(1 + r, t + 1));
+                    }
+                }
+                if (Math.abs(npv) < 1e-6) break;
+                if (Math.abs(dnpv) < 1e-12) break;
+                let nextR = r - npv / dnpv;
+                if (isNaN(nextR) || !isFinite(nextR)) break;
+                r = nextR;
+            }
+            return (r >= -0.99 && r <= 10.0 && !isNaN(r) && isFinite(r)) ? r : null;
+        }
+
+        // 計算 NPV
+        function computeNPV(rate, cfs) {
+            let npv = 0;
+            for (let t = 0; t < cfs.length; t++) {
+                npv += cfs[t] / Math.pow(1 + rate, t);
+            }
+            return npv;
+        }
+
+        // 主計算與渲染函式
+        function calculate() {
+            const initialCost = parseFloat(document.getElementById('input-cost').value) || 0;
+            const years = parseInt(document.getElementById('input-years').value) || 0;
+            const baseProfit = parseFloat(document.getElementById('input-profit').value) || 0;
+            const discountRate = (parseFloat(document.getElementById('input-rate').value) || 0) / 100;
+            const pessPct = (parseFloat(document.getElementById('input-pessimistic').value) || 0) / 100;
+            const optmPct = (parseFloat(document.getElementById('input-optimistic').value) || 0) / 100;
+
+            document.getElementById('badge-rate').innerText = `折現率 ${(discountRate * 100).toFixed(1)}%`;
+            document.getElementById('badge-cost').innerText = `初投: $${formatCurrency(initialCost)}`;
+            document.getElementById('th-pessimistic').innerText = `悲觀情境 (${(pessPct * 100).toFixed(0)}%)`;
+            document.getElementById('th-optimistic').innerText = `樂觀情境 (+${(optmPct * 100).toFixed(0)}%)`;
+
+            const cfPess = baseProfit * (1 + pessPct);
+            const cfBase = baseProfit;
+            const cfOptm = baseProfit * (1 + optmPct);
+
+            const cfsPess = [-initialCost].concat(Array(years).fill(cfPess));
+            const cfsBase = [-initialCost].concat(Array(years).fill(cfBase));
+            const cfsOptm = [-initialCost].concat(Array(years).fill(cfOptm));
+
+            const irrPess = computeIRR(cfsPess);
+            const irrBase = computeIRR(cfsBase);
+            const irrOptm = computeIRR(cfsOptm);
+
+            const npvPess = computeNPV(discountRate, cfsPess);
+            const npvBase = computeNPV(discountRate, cfsBase);
+            const npvOptm = computeNPV(discountRate, cfsOptm);
+
+            const pbPess = cfPess > 0 ? initialCost / cfPess : null;
+            const pbBase = cfBase > 0 ? initialCost / cfBase : null;
+            const pbOptm = cfOptm > 0 ? initialCost / cfOptm : null;
+
+            const totPess = cfPess * years - initialCost;
+            const totBase = cfBase * years - initialCost;
+            const totOptm = cfOptm * years - initialCost;
+
+            // 填入表格
+            const tbody = document.getElementById('result-table-body');
+            tbody.innerHTML = `
+                <tr>
+                    <td class="py-2.5 px-3 font-medium">年淨利潤 (現金流入)</td>
+                    <td class="py-2.5 px-3 text-right font-semibold">$${cfPess.toLocaleString('zh-TW', {maximumFractionDigits:1})}</td>
+                    <td class="py-2.5 px-3 text-right font-semibold text-blue-700">$${cfBase.toLocaleString('zh-TW', {maximumFractionDigits:1})}</td>
+                    <td class="py-2.5 px-3 text-right font-semibold">$${cfOptm.toLocaleString('zh-TW', {maximumFractionDigits:1})}</td>
+                </tr>
+                <tr class="bg-slate-50/50">
+                    <td class="py-2.5 px-3 font-medium">內部報酬率 (IRR)</td>
+                    <td class="py-2.5 px-3 text-right font-bold ${irrPess !== null && irrPess >= discountRate ? 'text-emerald-600' : 'text-rose-600'}">${irrPess !== null ? (irrPess * 100).toFixed(2) + '%' : 'N/A'}</td>
+                    <td class="py-2.5 px-3 text-right font-bold text-blue-700">${irrBase !== null ? (irrBase * 100).toFixed(2) + '%' : 'N/A'}</td>
+                    <td class="py-2.5 px-3 text-right font-bold text-emerald-600">${irrOptm !== null ? (irrOptm * 100).toFixed(2) + '%' : 'N/A'}</td>
+                </tr>
+                <tr>
+                    <td class="py-2.5 px-3 font-medium">淨現值 (NPV)</td>
+                    <td class="py-2.5 px-3 text-right font-semibold">$${npvPess.toLocaleString('zh-TW', {maximumFractionDigits:0})}</td>
+                    <td class="py-2.5 px-3 text-right font-semibold text-blue-700">$${npvBase.toLocaleString('zh-TW', {maximumFractionDigits:0})}</td>
+                    <td class="py-2.5 px-3 text-right font-semibold">$${npvOptm.toLocaleString('zh-TW', {maximumFractionDigits:0})}</td>
+                </tr>
+                <tr class="bg-slate-50/50">
+                    <td class="py-2.5 px-3 font-medium">靜態回收期 (Payback)</td>
+                    <td class="py-2.5 px-3 text-right font-semibold">${pbPess !== null ? pbPess.toFixed(2) + ' 年' : '無法回收'}</td>
+                    <td class="py-2.5 px-3 text-right font-semibold text-blue-700">${pbBase !== null ? pbBase.toFixed(2) + ' 年' : '無法回收'}</td>
+                    <td class="py-2.5 px-3 text-right font-semibold">${pbOptm !== null ? pbOptm.toFixed(2) + ' 年' : '無法回收'}</td>
+                </tr>
+                <tr>
+                    <td class="py-2.5 px-3 font-medium">10年累計未折現淨賺</td>
+                    <td class="py-2.5 px-3 text-right font-semibold">$${totPess.toLocaleString('zh-TW', {maximumFractionDigits:0})}</td>
+                    <td class="py-2.5 px-3 text-right font-semibold text-blue-700">$${totBase.toLocaleString('zh-TW', {maximumFractionDigits:0})}</td>
+                    <td class="py-2.5 px-3 text-right font-semibold">$${totOptm.toLocaleString('zh-TW', {maximumFractionDigits:0})}</td>
+                </tr>
+            `;
+
+            // 繪製圖表一：三情境 NPV
+            const ctxNpv = document.getElementById('npvChart').getContext('2d');
+            if (npvChartInstance) npvChartInstance.destroy();
+            npvChartInstance = new Chart(ctxNpv, {
+                type: 'bar',
+                data: {
+                    labels: [`悲觀 (${(pessPct*100).toFixed(0)}%)`, '基準 (0%)', `樂觀 (+${(optmPct*100).toFixed(0)}%)`],
+                    datasets: [{
+                        label: 'NPV (元)',
+                        data: [npvPess, npvBase, npvOptm],
+                        backgroundColor: ['#f43f5e', '#3b82f6', '#10b981'],
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            // 計算基準情境每年累積折現現值
+            let cumPv = -initialCost;
+            let labels = ['第0年(初投)'];
+            let cumPvData = [-initialCost];
+            let pvData = [-initialCost];
+
+            for (let t = 1; t <= years; t++) {
+                labels.push(`第${t}年`);
+                let pv = cfBase / Math.pow(1 + discountRate, t);
+                cumPv += pv;
+                cumPvData.push(cumPv);
+                pvData.push(pv);
+            }
+
+            // 繪製圖表二：基準情境累積現金流
+            const ctxCf = document.getElementById('cashflowChart').getContext('2d');
+            if (cashflowChartInstance) cashflowChartInstance.destroy();
+            cashflowChartInstance = new Chart(ctxCf, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '累積現值 (Cumulative NPV)',
+                        data: cumPvData,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: true,
+                        tension: 0.1,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: { y: { beginAtZero: false } }
+                }
+            });
+        }
+
+        // 頁面載入完成後立即初始化
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', calculate);
+        } else {
+            calculate();
+        }
+    </script>
+</body>
+</html>
